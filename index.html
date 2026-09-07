@@ -1,788 +1,129 @@
 <!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <title>RTTEX → PNG Converter</title>
-  <style>
-    :root{
-      color-scheme:light;
-      --bg:#fff;--surface:#f7f8fa;--surface2:#fff;--border:#e3e6ea;
-      --text:#111827;--muted:#6b7280;--button:#111827;--buttonText:#fff;
-      --preview:#f1f3f5;--danger:#dc2626;
-    }
-    @media(prefers-color-scheme:dark){
-      :root{
-        color-scheme:dark;
-        --bg:#0b0d10;--surface:#11151a;--surface2:#151a20;--border:#252b33;
-        --text:#f3f4f6;--muted:#9ca3af;--button:#fff;--buttonText:#0b0d10;
-        --preview:#0e1115;--danger:#ff8f8f;
-      }
-    }
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);
-      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
-    button,input{font:inherit}
-    button{cursor:pointer}
-    .wrap{width:min(1050px,calc(100% - 28px));margin:auto;padding:38px 0 50px}
-    .header{text-align:center;margin-bottom:26px}
-    h1{margin:0;font-size:clamp(27px,5vw,35px);letter-spacing:-.7px}
-    .sub{margin:8px 0 0;color:var(--muted);font-size:14px}
-    .drop{border:1px dashed var(--border);border-radius:16px;padding:36px 20px;text-align:center;
-      background:var(--surface);transition:.15s}
-    .drop.drag{border-color:var(--text);transform:translateY(-1px)}
-    input[type=file]{display:none}
-    .primary,.secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;
-      border-radius:10px;padding:11px 17px;font-weight:700;transition:.12s}
-    .primary{border:0;background:var(--button);color:var(--buttonText)}
-    .secondary{border:1px solid var(--border);background:var(--surface2);color:var(--text)}
-    button:hover{opacity:.85}button:active{transform:scale(.98)}button:disabled{opacity:.5;cursor:wait}
-    .hint{margin-top:12px;color:var(--muted);font-size:13px}
-    .status{margin:20px 0 14px;display:flex;justify-content:space-between;gap:12px;align-items:center;
-      color:var(--muted);font-size:14px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-    .preview{height:170px;display:flex;align-items:center;justify-content:center;padding:12px;
-      background:var(--preview);overflow:hidden;cursor:pointer}
-    .preview img{max-width:100%;max-height:100%;object-fit:contain}
-    .meta{padding:12px}.name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:10px}
-    .card button{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px;background:var(--surface2);
-      color:var(--text);font-weight:600}
-    .error{color:var(--danger);font-size:12px;line-height:1.4;text-align:center}
-    .empty{grid-column:1/-1;border:1px solid var(--border);border-radius:14px;padding:30px;text-align:center;
-      color:var(--muted);background:var(--surface)}
-
-    /* Editor / tile view */
-    #editor{display:none}
-    .editor-top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-    .back{border:1px solid var(--border);background:var(--surface);color:var(--text);
-      border-radius:9px;padding:9px 13px;font-weight:700}
-    .editor-title{min-width:0}
-    .editor-title strong{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .editor-title span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
-    .sheet-box{border:1px solid var(--border);border-radius:14px;background:var(--surface);
-      padding:12px;overflow:auto}
-    #sheetCanvas{display:block;max-width:100%;height:auto;margin:auto;image-rendering:auto}
-    .settings{margin-top:16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:18px}
-    .settings h2{font-size:18px;margin:0 0 16px}
-    .fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .field label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}
-    .field input[type=number]{width:100%;border:1px solid var(--border);border-radius:9px;padding:11px 12px;
-      background:var(--surface2);color:var(--text);outline:none}
-    .field input[type=number]:focus{border-color:var(--text)}
-    .tile-info{margin:14px 0;color:var(--muted);font-size:13px}
-    .download-result{width:100%;border:0;border-radius:10px;padding:12px;background:var(--button);
-      color:var(--buttonText);font-weight:800}
-    .tile-preview{margin-top:16px}
-    .tile-preview h3{font-size:15px;margin:0 0 10px}
-    .tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
-    .tile-item{border:1px solid var(--border);border-radius:9px;background:var(--surface2);padding:7px;text-align:center}
-    .tile-item img{display:block;width:100%;height:75px;object-fit:contain;background:var(--preview);margin-bottom:6px}
-    .tile-item span{font-size:11px;color:var(--muted)}
-    .note{margin-top:10px;color:var(--muted);font-size:11px;line-height:1.45}
-
-    /* Single tile modal */
-    .modal-backdrop{
-      position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
-      padding:16px;background:rgba(0,0,0,.62);backdrop-filter:blur(3px)
-    }
-    .modal-backdrop[hidden]{display:none}
-    .modal{
-      width:min(620px,100%);max-height:calc(100vh - 32px);overflow:auto;
-      border:1px solid var(--border);border-radius:15px;background:var(--surface);
-      box-shadow:0 18px 60px rgba(0,0,0,.35)
-    }
-    .modal-head{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;
-      padding:16px 18px;border-bottom:1px solid var(--border)
-    }
-    .modal-head strong{display:block;font-size:19px}
-    .modal-head span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
-    .modal-close{
-      width:38px;height:38px;border:1px solid var(--border);border-radius:9px;
-      background:var(--surface2);color:var(--text);font-size:25px;line-height:1
-    }
-    .modal-body{padding:18px}
-    .modal-body h3{margin:0 0 11px;font-size:17px}
-    .single-preview{
-      min-height:170px;display:flex;align-items:center;justify-content:center;
-      padding:16px;border:1px solid var(--border);border-radius:11px;background:var(--preview);
-      overflow:auto
-    }
-    #tileOriginalPreview{display:block;image-rendering:pixelated}
-    .modal-section{
-      margin-top:16px;padding-top:16px;border-top:1px solid var(--border)
-    }
-    .modal-section label{display:block;margin:0 0 7px;font-size:13px;font-weight:700}
-    .modal-section input{
-      width:100%;margin-bottom:12px;padding:11px 12px;border:1px solid var(--border);
-      border-radius:9px;background:var(--surface2);color:var(--text);outline:none
-    }
-    .modal-section input:focus{border-color:var(--text)}
-    .apply-size{
-      border:0;border-radius:9px;padding:10px 14px;background:#10b981;color:#fff;font-weight:800
-    }
-    .saved-size{margin-top:9px;color:var(--muted);font-size:12px}
-    .modal-actions{
-      display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px
-    }
-    .modal-actions button{width:100%}
-    .modal-note{margin-top:13px;color:var(--muted);font-size:11px;line-height:1.5}
-
-    @media(max-width:600px){
-      .wrap{padding:24px 0 40px}.drop{padding:28px 16px}
-      .status{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-      .preview{height:145px}.meta{padding:10px}.fields{grid-template-columns:1fr}
-      .tile-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.modal-actions{grid-template-columns:1fr}
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RTTEX → PNG Converter</title>
+<style>
+:root{color-scheme:light;--bg:#fff;--surface:#f7f8fa;--surface2:#fff;--border:#e3e6ea;--text:#111827;--muted:#6b7280;--button:#111827;--buttonText:#fff;--preview:#f1f3f5;--danger:#dc2626}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0b0d10;--surface:#11151a;--surface2:#151a20;--border:#252b33;--text:#f3f4f6;--muted:#9ca3af;--button:#fff;--buttonText:#0b0d10;--preview:#0e1115;--danger:#ff8f8f}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+button,input{font:inherit}button{cursor:pointer}.wrap{width:min(1050px,calc(100% - 28px));margin:auto;padding:38px 0 50px}
+.header{text-align:center;margin-bottom:26px}h1{margin:0;font-size:clamp(27px,5vw,35px);letter-spacing:-.7px}.sub{margin:8px 0 0;color:var(--muted);font-size:14px}
+.drop{border:1px dashed var(--border);border-radius:16px;padding:36px 20px;text-align:center;background:var(--surface);transition:.15s}.drop.drag{border-color:var(--text)}
+input[type=file]{display:none}.primary,.secondary{display:inline-flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;padding:11px 17px;font-weight:700}
+.primary{border:0;background:var(--button);color:var(--buttonText)}.secondary{border:1px solid var(--border);background:var(--surface2);color:var(--text)}
+button:hover{opacity:.85}button:disabled{opacity:.5;cursor:wait}.hint{margin-top:12px;color:var(--muted);font-size:13px}
+.status{margin:20px 0 14px;display:flex;justify-content:space-between;gap:12px;align-items:center;color:var(--muted);font-size:14px}.actions{display:flex;gap:8px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.preview{height:170px;display:flex;align-items:center;justify-content:center;padding:12px;background:var(--preview);overflow:hidden;cursor:pointer}.preview img{max-width:100%;max-height:100%;object-fit:contain}
+.meta{padding:12px}.name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:10px}.card button{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px;background:var(--surface2);color:var(--text);font-weight:600}
+.error{color:var(--danger);font-size:12px;line-height:1.4;text-align:center}.empty{grid-column:1/-1;border:1px solid var(--border);border-radius:14px;padding:30px;text-align:center;color:var(--muted);background:var(--surface)}
+#editor{display:none}.editor-top{display:flex;align-items:center;gap:12px;margin-bottom:18px}.back{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:9px;padding:9px 13px;font-weight:700}
+.editor-title{min-width:0}.editor-title strong{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.editor-title span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.sheet-box{border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:12px;overflow:auto}#sheetCanvas{display:block;max-width:100%;height:auto;margin:auto}
+.settings{margin-top:16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:18px}.settings h2{font-size:18px;margin:0 0 16px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}.field input{width:100%;border:1px solid var(--border);border-radius:9px;padding:11px 12px;background:var(--surface2);color:var(--text)}
+.tile-info{margin:14px 0;color:var(--muted);font-size:13px}.download-result{width:100%;border:0;border-radius:10px;padding:12px;background:var(--button);color:var(--buttonText);font-weight:800}
+.tile-preview{margin-top:16px}.tile-preview h3{font-size:15px;margin:0 0 10px}.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}.tile-item{border:1px solid var(--border);border-radius:9px;background:var(--surface2);padding:7px;text-align:center;cursor:pointer}.tile-item img{display:block;width:100%;height:75px;object-fit:contain;background:var(--preview);margin-bottom:6px}.tile-item span{font-size:11px;color:var(--muted)}
+.note{margin-top:10px;color:var(--muted);font-size:11px;line-height:1.45}.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:16px;z-index:20}.modal.open{display:flex}.dialog{width:min(560px,100%);max-height:92vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:18px}
+.dialog-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.dialog h2{margin:0;font-size:20px}.close{border:0;background:transparent;color:var(--muted);font-size:25px}.single-preview{margin:16px 0;border:1px solid var(--border);border-radius:10px;background:var(--preview);padding:15px;text-align:center;overflow:auto}.single-preview img{image-rendering:pixelated;max-width:100%;max-height:300px}
+.single-size{color:var(--muted);font-size:12px;margin:8px 0 14px}.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.apply{border:0;border-radius:9px;padding:11px;background:#10b981;color:#fff;font-weight:800}
+@media(max-width:600px){.wrap{padding:24px 0 40px}.drop{padding:28px 16px}.status{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.preview{height:145px}.meta{padding:10px}.fields{grid-template-columns:1fr}.tile-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.modal-actions{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <main class="wrap">
-  <section id="home">
-    <header class="header">
-      <h1>RTTEX → PNG</h1>
-      <p class="sub">Batch converter • proses langsung di browser</p>
-    </header>
+<section id="home">
+<header class="header"><h1>RTTEX → PNG</h1><p class="sub">Batch converter • RTTEX diproses di server</p></header>
+<section class="drop" id="drop"><input id="files" type="file" accept=".rttex" multiple><button class="primary" id="choose">📁 Pilih File RTTEX</button><div class="hint">Bisa pilih banyak file sekaligus atau drag & drop di sini.</div></section>
+<div class="status"><span id="status">Belum ada file.</span><div class="actions"><button class="secondary" id="downloadAll" hidden>⬇ Download Semua</button><button class="secondary" id="clear" hidden>✕ Bersihkan</button></div></div>
+<section class="grid" id="results"><div class="empty">Hasil PNG akan muncul di sini.</div></section>
+</section>
 
-    <section class="drop" id="drop">
-      <input id="files" type="file" accept=".rttex" multiple>
-      <button class="primary" id="choose">📁 Pilih File RTTEX</button>
-      <div class="hint">Bisa pilih banyak file sekaligus atau drag & drop di sini.</div>
-    </section>
-
-    <div class="status">
-      <span id="status">Belum ada file.</span>
-      <div class="actions">
-        <button class="secondary" id="downloadAll" hidden>⬇ Download Semua</button>
-        <button class="secondary" id="clear" hidden>✕ Bersihkan</button>
-      </div>
-    </div>
-
-    <section class="grid" id="results">
-      <div class="empty">Hasil PNG akan muncul di sini.</div>
-    </section>
-  </section>
-
-  <section id="editor">
-    <div class="editor-top">
-      <button class="back" id="back">← Kembali</button>
-      <div class="editor-title">
-        <strong id="editorName">Tile Image</strong>
-        <span>Atur ukuran tile lalu download semua tile.</span>
-      </div>
-    </div>
-
-    <div class="sheet-box">
-      <canvas id="sheetCanvas"></canvas>
-    </div>
-
-    <div class="settings">
-      <h2>Tile Settings</h2>
-
-      <div class="fields">
-        <div class="field">
-          <label for="tileWidth">Tile Width (X)</label>
-          <input id="tileWidth" type="number" min="1" step="1" value="32">
-        </div>
-
-        <div class="field">
-          <label for="tileHeight">Tile Height (Y)</label>
-          <input id="tileHeight" type="number" min="1" step="1" value="32">
-        </div>
-      </div>
-
-      <div class="tile-info" id="tileInfo">—</div>
-
-      <button class="download-result" id="downloadTiles">
-        ⬇ Download Result Tile
-      </button>
-
-      <div class="tile-preview">
-        <h3>Preview Tile</h3>
-        <div class="tile-grid" id="tileGrid"></div>
-      </div>
-
-      <div class="note">
-        Tile dipotong dari kiri ke kanan, kemudian dari atas ke bawah.
-        File hasil diberi nama berurutan mulai dari <b>0.png</b>.
-        Download Result Tile menghasilkan satu ZIP berisi semua tile.
-      </div>
-    </div>
-  </section>
-
-  <!-- Single tile editor -->
-  <div class="modal-backdrop" id="tileModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-head">
-        <div>
-          <strong id="modalTitle">Edit Tile</strong>
-          <span id="modalPosition">Tile 0</span>
-        </div>
-        <button class="modal-close" id="modalClose" aria-label="Tutup">×</button>
-      </div>
-
-      <div class="modal-body">
-        <h3>Image Preview</h3>
-        <div class="single-preview">
-          <canvas id="tileOriginalPreview"></canvas>
-        </div>
-
-        <div class="modal-section">
-          <label for="previewWidth">Preview Image Width</label>
-          <input id="previewWidth" type="number" min="1" step="1" value="128">
-
-          <label for="previewHeight">Preview Image Height</label>
-          <input id="previewHeight" type="number" min="1" step="1" value="128">
-
-          <button class="apply-size" id="applySize">Apply Size Preview Image</button>
-          <div class="saved-size" id="savedSize">Ukuran preview belum diterapkan.</div>
-        </div>
-
-        <div class="modal-actions">
-          <button class="secondary" id="downloadOriginalTile">⬇ Download Original Size</button>
-          <button class="primary" id="downloadPreviewTile">⬇ Download Preview Image</button>
-        </div>
-
-        <div class="modal-note">
-          Contoh: tile asli 32×32 dapat diubah menjadi 128×128.
-          Ukuran baru hanya diterapkan setelah menekan <b>Apply Size Preview Image</b>.
-          Preview menggunakan nearest-neighbor agar pixel art tetap tajam.
-        </div>
-      </div>
-    </div>
-  </div>
-
+<section id="editor">
+<div class="editor-top"><button class="back" id="back">← Kembali</button><div class="editor-title"><strong id="editorName">Tile Image</strong><span>Atur ukuran tile lalu download.</span></div></div>
+<div class="sheet-box"><canvas id="sheetCanvas"></canvas></div>
+<div class="settings"><h2>Tile Settings</h2><div class="fields"><div class="field"><label for="tileWidth">Tile Width (X)</label><input id="tileWidth" type="number" min="1" value="32"></div><div class="field"><label for="tileHeight">Tile Height (Y)</label><input id="tileHeight" type="number" min="1" value="32"></div></div><div class="tile-info" id="tileInfo">—</div><button class="download-result" id="downloadTiles">⬇ Download Result Tile</button><div class="tile-preview"><h3>Preview Tile</h3><div class="tile-grid" id="tileGrid"></div></div><div class="note">Klik tile untuk membuka editor single-tile. Semua proses resize menggunakan nearest-neighbor agar pixel art tetap tajam.</div></div>
+</section>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<div class="modal" id="modal"><div class="dialog"><div class="dialog-head"><h2 id="modalTitle">Edit Tile</h2><button class="close" id="closeModal">×</button></div><div class="single-preview"><img id="singleImage" alt="Tile preview"></div><div class="single-size" id="singleOriginal">Original: —</div><div class="fields"><div class="field"><label for="previewWidth">Preview Image Width</label><input id="previewWidth" type="number" min="1" value="128"></div><div class="field"><label for="previewHeight">Preview Image Height</label><input id="previewHeight" type="number" min="1" value="128"></div></div><button class="apply" id="applyPreview">Apply Size Preview Image</button><div class="single-size" id="appliedSize">Preview size belum diterapkan.</div><div class="modal-actions"><button class="secondary" id="downloadOriginal">⬇ Download Original Size</button><button class="secondary" id="downloadPreview">⬇ Download Preview Image</button></div></div></div>
+
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
 <script>
-const input=document.getElementById('files');
-const choose=document.getElementById('choose');
-const drop=document.getElementById('drop');
-const results=document.getElementById('results');
-const status=document.getElementById('status');
-const downloadAll=document.getElementById('downloadAll');
-const clear=document.getElementById('clear');
+const $=id=>document.getElementById(id);
+const input=$('files'),choose=$('choose'),drop=$('drop'),results=$('results'),status=$('status'),downloadAll=$('downloadAll'),clear=$('clear');
+const home=$('home'),editor=$('editor'),back=$('back'),editorName=$('editorName'),sheet=$('sheetCanvas'),tw=$('tileWidth'),th=$('tileHeight'),tileInfo=$('tileInfo'),tileGrid=$('tileGrid'),downloadTiles=$('downloadTiles');
+const modal=$('modal'),modalTitle=$('modalTitle'),singleImage=$('singleImage'),singleOriginal=$('singleOriginal'),pw=$('previewWidth'),ph=$('previewHeight'),applyPreview=$('applyPreview'),appliedSize=$('appliedSize'),downloadOriginal=$('downloadOriginal'),downloadPreview=$('downloadPreview');
+const converted=[];let activeImage=null,activeTile=null;
 
-const home=document.getElementById('home');
-const editor=document.getElementById('editor');
-const back=document.getElementById('back');
-const editorName=document.getElementById('editorName');
-const sheetCanvas=document.getElementById('sheetCanvas');
-const tileWidth=document.getElementById('tileWidth');
-const tileHeight=document.getElementById('tileHeight');
-const tileInfo=document.getElementById('tileInfo');
-const tileGrid=document.getElementById('tileGrid');
-const downloadTiles=document.getElementById('downloadTiles');
-const tileModal=document.getElementById('tileModal');
-const modalClose=document.getElementById('modalClose');
-const modalTitle=document.getElementById('modalTitle');
-const modalPosition=document.getElementById('modalPosition');
-const tileOriginalPreview=document.getElementById('tileOriginalPreview');
-const previewWidth=document.getElementById('previewWidth');
-const previewHeight=document.getElementById('previewHeight');
-const applySize=document.getElementById('applySize');
-const savedSize=document.getElementById('savedSize');
-const downloadOriginalTile=document.getElementById('downloadOriginalTile');
-const downloadPreviewTile=document.getElementById('downloadPreviewTile');
+choose.onclick=()=>input.click();input.onchange=()=>handleFiles([...input.files]);
+['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));
+drop.addEventListener('drop',e=>handleFiles([...e.dataTransfer.files].filter(f=>/\.rttex$/i.test(f.name))));
+clear.onclick=()=>{converted.length=0;results.innerHTML='<div class="empty">Hasil PNG akan muncul di sini.</div>';status.textContent='Belum ada file.';downloadAll.hidden=true;clear.hidden=true;input.value=''};
+back.onclick=()=>{editor.style.display='none';home.style.display='block';tileGrid.innerHTML='';activeImage=null};
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 
-let selectedTile=null;
-
-
-const converted=[];
-let activeImage=null;
-
-choose.onclick=()=>input.click();
-input.onchange=()=>handleFiles([...input.files]);
-
-['dragenter','dragover'].forEach(type=>drop.addEventListener(type,e=>{
-  e.preventDefault();drop.classList.add('drag');
-}));
-['dragleave','drop'].forEach(type=>drop.addEventListener(type,e=>{
-  e.preventDefault();drop.classList.remove('drag');
-}));
-drop.addEventListener('drop',e=>{
-  handleFiles([...e.dataTransfer.files].filter(f=>/\.rttex$/i.test(f.name)));
-});
-
-clear.onclick=()=>{
-  converted.length=0;
-  results.innerHTML='<div class="empty">Hasil PNG akan muncul di sini.</div>';
-  status.textContent='Belum ada file.';
-  downloadAll.hidden=true;
-  clear.hidden=true;
-  input.value='';
-};
-
-back.onclick=()=>{
-  editor.style.display='none';
-  home.style.display='block';
-  tileGrid.innerHTML='';
-  activeImage=null;
-};
-
-function readNum(b,p,n){
-  let v=0;
-  for(let i=0;i<n;i++)v+=b[p+i]<<(i*8);
-  return v>>>0;
+async function convert(file){
+  const fd=new FormData();fd.append('file',file,file.name);
+  const r=await fetch('/api/convert',{method:'POST',body:fd});
+  if(!r.ok){let msg='Gagal mengonversi';try{msg=(await r.json()).error||msg}catch{}throw Error(msg)}
+  return await r.blob();
 }
-function readString(b,p,n){
-  let s='';
-  for(let i=0;i<n;i++)s+=String.fromCharCode(b[p+i]);
-  return s;
-}
-
-function decodeRTTEX(buffer){
-  let bytes=new Uint8Array(buffer);
-
-  if(readString(bytes,0,6)==='RTPACK'){
-    bytes=pako.inflate(bytes.slice(32));
-  }
-
-  if(readString(bytes,0,6)!=='RTTXTR')
-    throw new Error('Format RTTEX tidak valid');
-
-  const height=readNum(bytes,8,4);
-  const width=readNum(bytes,12,2);
-  const alpha=bytes[0x1c];
-  const channels=3+alpha;
-  const pixelBytes=width*height*channels;
-  const pixelStart=0x7c;
-
-  if(width<=0||height<=0||pixelStart+pixelBytes>bytes.length)
-    throw new Error('Ukuran atau data gambar tidak valid');
-
-  const canvas=document.createElement('canvas');
-  canvas.width=width;canvas.height=height;
-  const ctx=canvas.getContext('2d');
-  const image=ctx.createImageData(width,height);
-
-  /*
-    RTTEX pixel data can be RGB/RGBA depending on the alpha flag.
-    Canvas ImageData is always RGBA, so explicitly expand RGB data.
-  */
-  if(channels===4){
-    image.data.set(bytes.slice(pixelStart,pixelStart+pixelBytes));
-  }else{
-    const src=bytes.subarray(pixelStart,pixelStart+pixelBytes);
-    for(let i=0,j=0;i<src.length;i+=3,j+=4){
-      image.data[j]=src[i];
-      image.data[j+1]=src[i+1];
-      image.data[j+2]=src[i+2];
-      image.data[j+3]=255;
-    }
-  }
-  ctx.putImageData(image,0,0);
-
-  const output=document.createElement('canvas');
-  output.width=width;output.height=height;
-  const octx=output.getContext('2d');
-  octx.translate(0,height);
-  octx.scale(1,-1);
-  octx.drawImage(canvas,0,0);
-
-  return new Promise(resolve=>output.toBlob(resolve,'image/png'));
-}
-
 async function handleFiles(files){
-  if(!files.length)return;
-
-  converted.length=0;
-  results.innerHTML='';
-  downloadAll.hidden=true;
-  clear.hidden=false;
-  status.textContent=`Memproses 0/${files.length}...`;
-
+  if(!files.length)return;converted.length=0;results.innerHTML='';downloadAll.hidden=true;clear.hidden=false;
   for(let i=0;i<files.length;i++){
-    const file=files[i];
-    const card=document.createElement('article');
-    card.className='card';
-    card.innerHTML=`
-      <div class="preview">Memproses...</div>
-      <div class="meta">
-        <div class="name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-      </div>`;
-    results.appendChild(card);
-
+    const f=files[i],card=document.createElement('article');card.className='card';card.innerHTML=`<div class="preview">Memproses...</div><div class="meta"><div class="name">${esc(f.name)}</div></div>`;results.appendChild(card);
     try{
-      const blob=await decodeRTTEX(await file.arrayBuffer());
-      if(!blob)throw new Error('Browser gagal membuat PNG');
-
-      const url=URL.createObjectURL(blob);
-      const pngName=file.name.replace(/\.rttex$/i,'.png');
-      const img=document.createElement('img');
-      img.src=url;
-      img.alt=pngName;
-
-      card.querySelector('.preview').innerHTML='';
-      card.querySelector('.preview').appendChild(img);
-
-      /* Klik gambar -> buka tile editor */
-      card.querySelector('.preview').onclick=()=>openEditor(blob,pngName);
-
-      const button=document.createElement('button');
-      button.textContent='⬇ Download PNG';
-      /* Klik Download juga membuka tile editor sesuai desain yang diminta */
-      button.onclick=()=>openEditor(blob,pngName);
-      card.querySelector('.meta').appendChild(button);
-
-      converted.push({name:pngName,blob});
-    }catch(error){
-      card.querySelector('.preview').innerHTML=
-        `<div class="error">Gagal mengonversi:<br>${escapeHtml(error.message||'file tidak dapat diproses')}</div>`;
-    }
-
-    status.textContent=`Memproses ${i+1}/${files.length}...`;
-    await new Promise(r=>setTimeout(r,0));
+      const blob=await convert(f),url=URL.createObjectURL(blob),name=f.name.replace(/\.rttex$/i,'.png'),img=document.createElement('img');img.src=url;img.alt=name;
+      card.querySelector('.preview').innerHTML='';card.querySelector('.preview').appendChild(img);
+      card.querySelector('.preview').onclick=()=>openEditor(blob,name);
+      const b=document.createElement('button');b.textContent='⬇ Download PNG';b.onclick=()=>openEditor(blob,name);card.querySelector('.meta').appendChild(b);
+      converted.push({name,blob});
+    }catch(e){card.querySelector('.preview').innerHTML=`<div class="error">Gagal:<br>${esc(e.message)}</div>`}
+    status.textContent=`Memproses ${i+1}/${files.length}...`;await new Promise(r=>setTimeout(r,0));
   }
-
-  status.textContent=`${converted.length} dari ${files.length} file berhasil dikonversi.`;
-  downloadAll.hidden=converted.length===0;
+  status.textContent=`${converted.length} dari ${files.length} file berhasil dikonversi.`;downloadAll.hidden=!converted.length;
 }
-
-async function openEditor(blob,name){
-  const url=URL.createObjectURL(blob);
-  const img=new Image();
-
-  img.onload=()=>{
-    activeImage={img,name,url};
-    editorName.textContent=name;
-    home.style.display='none';
-    editor.style.display='block';
-
-    tileWidth.value=32;
-    tileHeight.value=32;
-
-    drawSheet();
-    updateTiles();
-  };
-
-  img.onerror=()=>{
-    URL.revokeObjectURL(url);
-    alert('PNG tidak dapat dibuka.');
-  };
-
-  img.src=url;
+function openEditor(blob,name){
+  const url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{activeImage={img,name,url};editorName.textContent=name;home.style.display='none';editor.style.display='block';tw.value=32;th.value=32;drawSheet();updateTiles()};img.src=url;
 }
-
 function drawSheet(){
-  if(!activeImage)return;
-
-  const img=activeImage.img;
-  sheetCanvas.width=img.naturalWidth;
-  sheetCanvas.height=img.naturalHeight;
-
-  const ctx=sheetCanvas.getContext('2d');
-  ctx.clearRect(0,0,sheetCanvas.width,sheetCanvas.height);
-  ctx.drawImage(img,0,0);
-
-  /* Grid overlay */
-  const tw=Math.max(1,Number(tileWidth.value)||32);
-  const th=Math.max(1,Number(tileHeight.value)||32);
-
-  ctx.save();
-  ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
-  ctx.globalAlpha=.55;
-  ctx.lineWidth=1;
-
-  for(let x=tw+.5;x<img.naturalWidth;x+=tw){
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,img.naturalHeight);ctx.stroke();
-  }
-  for(let y=th+.5;y<img.naturalHeight;y+=th){
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(img.naturalWidth,y);ctx.stroke();
-  }
-  ctx.restore();
+  if(!activeImage)return;const img=activeImage.img;sheet.width=img.naturalWidth;sheet.height=img.naturalHeight;const c=sheet.getContext('2d');c.imageSmoothingEnabled=false;c.drawImage(img,0,0);
+  const x=Math.max(1,+tw.value||32),y=Math.max(1,+th.value||32);c.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--muted');c.globalAlpha=.55;c.lineWidth=1;
+  for(let a=x+.5;a<img.naturalWidth;a+=x){c.beginPath();c.moveTo(a,0);c.lineTo(a,img.naturalHeight);c.stroke()}for(let a=y+.5;a<img.naturalHeight;a+=y){c.beginPath();c.moveTo(0,a);c.lineTo(img.naturalWidth,a);c.stroke()}
 }
-
+function tileCanvas(index){
+  const img=activeImage.img,x=Math.max(1,+tw.value||32),y=Math.max(1,+th.value||32),cols=Math.ceil(img.naturalWidth/x),col=index%cols,row=Math.floor(index/cols),sx=col*x,sy=row*y,sw=Math.min(x,img.naturalWidth-sx),sh=Math.min(y,img.naturalHeight-sy),c=document.createElement('canvas');c.width=x;c.height=y;const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.drawImage(img,sx,sy,sw,sh,0,0,sw,sh);return c
+}
 function updateTiles(){
-  if(!activeImage)return;
-
-  const img=activeImage.img;
-  const tw=Math.max(1,parseInt(tileWidth.value)||32);
-  const th=Math.max(1,parseInt(tileHeight.value)||32);
-
-  const cols=Math.ceil(img.naturalWidth/tw);
-  const rows=Math.ceil(img.naturalHeight/th);
-  const count=cols*rows;
-
-  tileInfo.textContent=
-    `Ukuran gambar: ${img.naturalWidth} × ${img.naturalHeight}px • `+
-    `Grid: ${cols} × ${rows} • Total tile: ${count}`;
-
-  tileGrid.innerHTML='';
-
-  /* Preview dibatasi agar halaman tidak terlalu berat untuk spritesheet besar */
-  const previewLimit=Math.min(count,100);
-
-  for(let index=0;index<previewLimit;index++){
-    const col=index%cols;
-    const row=Math.floor(index/cols);
-    const sx=col*tw;
-    const sy=row*th;
-    const sw=Math.min(tw,img.naturalWidth-sx);
-    const sh=Math.min(th,img.naturalHeight-sy);
-
-    const canvas=document.createElement('canvas');
-    canvas.width=tw;canvas.height=th;
-    const ctx=canvas.getContext('2d');
-    ctx.drawImage(img,sx,sy,sw,sh,0,0,sw,sh);
-
-    const item=document.createElement('div');
-    item.className='tile-item';
-
-    const tileImg=document.createElement('img');
-    tileImg.src=canvas.toDataURL('image/png');
-
-    const label=document.createElement('span');
-    label.textContent=`${index}.png`;
-
-    item.appendChild(tileImg);
-    item.appendChild(label);
-    item.title=`Klik untuk edit/download tile ${index}.png`;
-    item.style.cursor='pointer';
-    item.addEventListener('click',()=>openTileModal(index));
-    tileGrid.appendChild(item);
-  }
-
-  if(count>100){
-    const more=document.createElement('div');
-    more.className='note';
-    more.textContent=`Preview menampilkan 100 tile pertama. Semua ${count} tile tetap akan dimasukkan saat download.`;
-    tileGrid.appendChild(more);
-  }
-
-  drawSheet();
+  if(!activeImage)return;const img=activeImage.img,x=Math.max(1,+tw.value||32),y=Math.max(1,+th.value||32),cols=Math.ceil(img.naturalWidth/x),rows=Math.ceil(img.naturalHeight/y),count=cols*rows;
+  tileInfo.textContent=`Ukuran gambar: ${img.naturalWidth} × ${img.naturalHeight}px • Grid: ${cols} × ${rows} • Total tile: ${count}`;tileGrid.innerHTML='';
+  for(let i=0;i<Math.min(count,100);i++){const c=tileCanvas(i),item=document.createElement('div');item.className='tile-item';const im=document.createElement('img');im.src=c.toDataURL();const sp=document.createElement('span');sp.textContent=`${i}.png`;item.append(im,sp);item.onclick=()=>openTile(i);tileGrid.appendChild(item)}
+  if(count>100){const n=document.createElement('div');n.className='note';n.textContent=`Preview 100 tile pertama. Download tetap membuat semua ${count} tile.`;tileGrid.appendChild(n)}drawSheet()
 }
-
-
-function makeTileCanvas(index){
-  if(!activeImage)return null;
-
-  const tw=Math.max(1,parseInt(tileWidth.value)||32);
-  const th=Math.max(1,parseInt(tileHeight.value)||32);
-  const img=activeImage.img;
-  const cols=Math.ceil(img.naturalWidth/tw);
-  const col=index%cols;
-  const row=Math.floor(index/cols);
-  const sx=col*tw;
-  const sy=row*th;
-  const sw=Math.min(tw,img.naturalWidth-sx);
-  const sh=Math.min(th,img.naturalHeight-sy);
-
-  const canvas=document.createElement('canvas');
-  canvas.width=tw;
-  canvas.height=th;
-  const ctx=canvas.getContext('2d');
-  ctx.imageSmoothingEnabled=false;
-  ctx.clearRect(0,0,tw,th);
-  ctx.drawImage(img,sx,sy,sw,sh,0,0,sw,sh);
-  return canvas;
+tw.oninput=updateTiles;th.oninput=updateTiles;
+async function openTile(index){
+  activeTile={index,canvas:tileCanvas(index),originalW:tileCanvas(index).width,originalH:tileCanvas(index).height,appliedW:null,appliedH:null};
+  modalTitle.textContent=`Edit Tile ${index}`;singleOriginal.textContent=`Original: ${activeTile.originalW} × ${activeTile.originalH}px`;pw.value=128;ph.value=128;appliedSize.textContent='Preview size belum diterapkan.';singleImage.src=activeTile.canvas.toDataURL();modal.classList.add('open')
 }
-
-function openTileModal(index){
-  if(!activeImage)return;
-
-  const original=makeTileCanvas(index);
-  if(!original)return;
-
-  selectedTile={
-    index,
-    original,
-    appliedWidth:original.width,
-    appliedHeight:original.height
-  };
-
-  modalTitle.textContent='Edit Tile';
-  modalPosition.textContent=`Tile ${index} • ${original.width} × ${original.height}px`;
-
-  tileOriginalPreview.width=original.width;
-  tileOriginalPreview.height=original.height;
-  const ctx=tileOriginalPreview.getContext('2d');
-  ctx.imageSmoothingEnabled=false;
-  ctx.clearRect(0,0,original.width,original.height);
-  ctx.drawImage(original,0,0);
-
-  /*
-    Default fields show a larger preview size, but this is NOT saved/applied
-    until the user presses Apply.
-  */
-  previewWidth.value=Math.max(128,original.width);
-  previewHeight.value=Math.max(128,original.height);
-  savedSize.textContent=`Ukuran tersimpan: ${original.width} × ${original.height}px (original)`;
-
-  tileModal.hidden=false;
-  document.body.style.overflow='hidden';
-}
-
-function closeTileModal(){
-  tileModal.hidden=true;
-  document.body.style.overflow='';
-  selectedTile=null;
-}
-
-modalClose.onclick=closeTileModal;
-tileModal.addEventListener('click',e=>{
-  if(e.target===tileModal)closeTileModal();
-});
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&!tileModal.hidden)closeTileModal();
-});
-
-applySize.onclick=()=>{
-  if(!selectedTile)return;
-
-  const w=parseInt(previewWidth.value);
-  const h=parseInt(previewHeight.value);
-
-  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1){
-    alert('Masukkan ukuran width dan height yang valid.');
-    return;
-  }
-
-  selectedTile.appliedWidth=w;
-  selectedTile.appliedHeight=h;
-
-  const scaled=document.createElement('canvas');
-  scaled.width=w;
-  scaled.height=h;
-
-  const ctx=scaled.getContext('2d');
-  ctx.imageSmoothingEnabled=false;
-  ctx.clearRect(0,0,w,h);
-  ctx.drawImage(selectedTile.original,0,0,w,h);
-
-  tileOriginalPreview.width=w;
-  tileOriginalPreview.height=h;
-  const previewCtx=tileOriginalPreview.getContext('2d');
-  previewCtx.imageSmoothingEnabled=false;
-  previewCtx.clearRect(0,0,w,h);
-  previewCtx.drawImage(scaled,0,0);
-
-  savedSize.textContent=`Ukuran preview tersimpan: ${w} × ${h}px`;
+closeModal.onclick=()=>modal.classList.remove('open');modal.onclick=e=>{if(e.target===modal)modal.classList.remove('open')};
+applyPreview.onclick=()=>{
+  const w=Math.max(1,+pw.value||1),h=Math.max(1,+ph.value||1);activeTile.appliedW=w;activeTile.appliedH=h;
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(activeTile.canvas,0,0,w,h);activeTile.preview=c;singleImage.src=c.toDataURL();appliedSize.textContent=`Preview tersimpan: ${w} × ${h}px`
 };
-
-downloadOriginalTile.onclick=()=>{
-  if(!selectedTile)return;
-  saveBlobFromCanvas(selectedTile.original,`${selectedTile.index}.png`);
-};
-
-downloadPreviewTile.onclick=()=>{
-  if(!selectedTile)return;
-
-  /*
-    Preview download uses the LAST size that was applied.
-    Typing a new value without Apply does not change the download.
-  */
-  const w=selectedTile.appliedWidth;
-  const h=selectedTile.appliedHeight;
-
-  const scaled=document.createElement('canvas');
-  scaled.width=w;
-  scaled.height=h;
-
-  const ctx=scaled.getContext('2d');
-  ctx.imageSmoothingEnabled=false;
-  ctx.clearRect(0,0,w,h);
-  ctx.drawImage(selectedTile.original,0,0,w,h);
-
-  saveBlobFromCanvas(scaled,`${selectedTile.index}-preview.png`);
-};
-
-function saveBlobFromCanvas(canvas,name){
-  canvas.toBlob(blob=>{
-    if(blob)saveBlob(blob,name);
-  },'image/png');
-}
-
-
-tileWidth.addEventListener('input',updateTiles);
-tileHeight.addEventListener('input',updateTiles);
-
+downloadOriginal.onclick=()=>{if(activeTile)saveCanvas(activeTile.canvas,`${activeTile.index}.png`)};
+downloadPreview.onclick=()=>{if(!activeTile?.preview){alert('Klik Apply Size Preview Image terlebih dahulu.');return}saveCanvas(activeTile.preview,`${activeTile.index}-preview.png`)};
+function saveCanvas(c,n){c.toBlob(b=>saveBlob(b,n),'image/png')}
 downloadTiles.onclick=async()=>{
-  if(!activeImage)return;
-
-  const tw=Math.max(1,parseInt(tileWidth.value)||32);
-  const th=Math.max(1,parseInt(tileHeight.value)||32);
-  const img=activeImage.img;
-  const cols=Math.ceil(img.naturalWidth/tw);
-  const rows=Math.ceil(img.naturalHeight/th);
-  const total=cols*rows;
-
-  downloadTiles.disabled=true;
-  downloadTiles.textContent=`Membuat ${total} tile...`;
-
-  try{
-    const zip=new JSZip();
-
-    for(let index=0;index<total;index++){
-      const col=index%cols;
-      const row=Math.floor(index/cols);
-      const sx=col*tw;
-      const sy=row*th;
-      const sw=Math.min(tw,img.naturalWidth-sx);
-      const sh=Math.min(th,img.naturalHeight-sy);
-
-      const canvas=document.createElement('canvas');
-      canvas.width=tw;
-      canvas.height=th;
-
-      const ctx=canvas.getContext('2d');
-      ctx.clearRect(0,0,tw,th);
-      ctx.drawImage(img,sx,sy,sw,sh,0,0,sw,sh);
-
-      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
-      zip.file(`${index}.png`,blob);
-
-      if(index%20===0){
-        downloadTiles.textContent=`Membuat tile ${index+1}/${total}...`;
-        await new Promise(r=>setTimeout(r,0));
-      }
-    }
-
-    const zipBlob=await zip.generateAsync({type:'blob'});
-    saveBlob(zipBlob,`${activeImage.name.replace(/\.png$/i,'')}-tiles.zip`);
-  }catch(error){
-    alert(`Gagal membuat tile: ${error.message||error}`);
-  }finally{
-    downloadTiles.disabled=false;
-    downloadTiles.textContent='⬇ Download Result Tile';
-  }
+  if(!activeImage)return;const img=activeImage.img,x=Math.max(1,+tw.value||32),y=Math.max(1,+th.value||32),cols=Math.ceil(img.naturalWidth/x),rows=Math.ceil(img.naturalHeight/y),total=cols*rows;downloadTiles.disabled=true;
+  try{const z=new JSZip();for(let i=0;i<total;i++){const c=tileCanvas(i),b=await new Promise(r=>c.toBlob(r,'image/png'));z.file(`${i}.png`,b);if(i%20===0){downloadTiles.textContent=`Membuat tile ${i+1}/${total}...`;await new Promise(r=>setTimeout(r,0))}}saveBlob(await z.generateAsync({type:'blob'}),`${activeImage.name.replace(/\.png$/i,'')}-tiles.zip`)}finally{downloadTiles.disabled=false;downloadTiles.textContent='⬇ Download Result Tile'}
 };
-
-downloadAll.onclick=async()=>{
-  if(!converted.length)return;
-  downloadAll.disabled=true;
-  downloadAll.textContent='Membuat ZIP...';
-
-  try{
-    const zip=new JSZip();
-    converted.forEach(x=>zip.file(x.name,x.blob));
-    const blob=await zip.generateAsync({type:'blob'});
-    saveBlob(blob,'rttex-png.zip');
-  }finally{
-    downloadAll.disabled=false;
-    downloadAll.textContent='⬇ Download Semua';
-  }
-};
-
-function saveBlob(blob,name){
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=name;
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
-
-function escapeHtml(value){
-  return value.replace(/[&<>"']/g,c=>({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
-  }[c]));
-}
+downloadAll.onclick=async()=>{downloadAll.disabled=true;try{const z=new JSZip();converted.forEach(x=>z.file(x.name,x.blob));saveBlob(await z.generateAsync({type:'blob'}),'rttex-png.zip')}finally{downloadAll.disabled=false}};
+function saveBlob(b,n){const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 </script>
 </body>
 </html>

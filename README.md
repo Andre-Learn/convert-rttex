@@ -1,15 +1,18 @@
-# RTTEX → PNG Batch Converter
+# RTTEX → PNG Vercel Server-Side
 
-Static web app for Vercel.
+This version moves RTTEX decoding to `/api/convert`, so the RTTEX decoding implementation is not shipped to the browser.
 
 ## Deploy
-1. Upload this folder to a GitHub repository.
-2. In Vercel, choose **Add New Project** and import the repository.
-3. Framework Preset: **Other**.
+1. Push this whole folder to GitHub.
+2. Import the repository into Vercel.
+3. Framework Preset: Other.
 4. Build Command: leave empty.
 5. Output Directory: leave empty.
 6. Deploy.
 
-The converter runs in the browser. RTTEX files are not uploaded to your server.
+Vercel installs `sharp` and `formidable` from package.json.
 
-The decoding logic is adapted from the RTTEX unpacking approach used by GuckTubeYT GrowTools.
+## Important
+- Uploaded RTTEX files are processed by a Vercel Function and temporary files are removed after conversion.
+- The frontend still contains the tile editor because it must run in the user's browser. The server-side RTTEX decoder is not exposed there.
+- This does not make the whole website source secret; browser-side HTML/CSS/JS can always be inspected.
