@@ -100,10 +100,35 @@ function tileCanvas(index){
   const img=activeImage.img,x=Math.max(1,+tw.value||32),y=Math.max(1,+th.value||32),cols=Math.ceil(img.naturalWidth/x),col=index%cols,row=Math.floor(index/cols),sx=col*x,sy=row*y,sw=Math.min(x,img.naturalWidth-sx),sh=Math.min(y,img.naturalHeight-sy),c=document.createElement('canvas');c.width=x;c.height=y;const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.drawImage(img,sx,sy,sw,sh,0,0,sw,sh);return c
 }
 function updateTiles(){
-  if(!activeImage)return;const img=activeImage.img,x=Math.max(1,+tw.value||32),y=Math.max(1,+th.value||32),cols=Math.ceil(img.naturalWidth/x),rows=Math.ceil(img.naturalHeight/y),count=cols*rows;
-  tileInfo.textContent=`Ukuran gambar: ${img.naturalWidth} × ${img.naturalHeight}px • Grid: ${cols} × ${rows} • Total tile: ${count}`;tileGrid.innerHTML='';
-  for(let i=0;i<Math.min(count,100);i++){const c=tileCanvas(i),item=document.createElement('div');item.className='tile-item';const im=document.createElement('img');im.src=c.toDataURL();const sp=document.createElement('span');sp.textContent=`${i}.png`;item.append(im,sp);item.onclick=()=>openTile(i);tileGrid.appendChild(item)}
-  if(count>100){const n=document.createElement('div');n.className='note';n.textContent=`Preview 100 tile pertama. Download tetap membuat semua ${count} tile.`;tileGrid.appendChild(n)}drawSheet()
+  if(!activeImage)return;
+  const img=activeImage.img,
+        x=Math.max(1,+tw.value||32),
+        y=Math.max(1,+th.value||32),
+        cols=Math.ceil(img.naturalWidth/x),
+        rows=Math.ceil(img.naturalHeight/y),
+        count=cols*rows;
+
+  tileInfo.textContent=`Ukuran gambar: ${img.naturalWidth} × ${img.naturalHeight}px • Grid: ${cols} × ${rows} • Total tile: ${count}`;
+  tileGrid.innerHTML='';
+
+  for(let i=0;i<count;i++){
+    const c=tileCanvas(i),
+          item=document.createElement('div');
+
+    item.className='tile-item';
+
+    const im=document.createElement('img');
+    im.src=c.toDataURL();
+
+    const sp=document.createElement('span');
+    sp.textContent=`${i}.png`;
+
+    item.append(im,sp);
+    item.onclick=()=>openTile(i);
+    tileGrid.appendChild(item);
+  }
+
+  drawSheet();
 }
 tw.oninput=updateTiles;th.oninput=updateTiles;
 async function openTile(index){
